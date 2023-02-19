@@ -10,30 +10,29 @@ exports.getOne = (req, res, next) => {
 };
 
 exports.create = (req, res, next) => {
-  const imageObject = JSON.parse(req.body.sauce);
+  const imageObject = req.file;
   delete imageObject._id;
-  const images = new Image({
+  const image = new Image({
+    ...imageObject,
     imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
   });
-  images.save()
-  .then(() => res.status(201).json({ message: 'Image created',}))
-  .catch((error) => res.status(500).json({error: error, message: "Service error"}));
+  if(!imageObject) {
+    return res.status(404).json({ error: 'No image found' });
+  }
+  image.save()
+    .then(() => res.status(201).json({ message: 'Image saved', id: image._id}))
+    .catch(error => res.status(500).json({ error: error }));
 };
 
 exports.delete = (req, res, next) => {
   Image.findOne({ _id: req.params.id })
     .then(images => {
-      const filename = sauces.imageUrl.split('/images/')[1];
+      const filename = images.imageUrl.split('/images/')[1];
       fs.unlink(`images/${filename}`, () => {
         Image.deleteOne({ _id: req.params.id })
           .then(() => res.status(200).json({ message: 'Image deleted'}))
-          .catch(error => res.status(400).json({ error }));
+          .catch(error => res.status(400).json({ error: error }));
       });
     })
-    .catch(error => res.status(500).json({ error }));
-};
-
-exports.update = (req, res, next) => {
-  this.create(req, res, next);
-  this.delete(req, res, next);
+    .catch(error => res.status(500).json({ error: error }));
 };
